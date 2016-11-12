@@ -1,13 +1,26 @@
 let s:save_cpo = &cpo
 set cpo&vim
 
-let s:V = vital#of('ctrlme')
-let s:FP = s:V.import('System.Filepath')
-let s:_  = s:V.import('Underscore').import()
+let s:V    = vital#of('ctrlme')
+let s:FP   = s:V.import('System.Filepath')
+let s:_    = s:V.import('Underscore').import()
 let s:TOML = s:V.import('Text.TOML')
 
 function! ctrlme#load_toml(toml_file) abort
-  return s:TOML.parse_file(a:toml_file)
+  try
+    let ret = s:TOML.parse_file(a:toml_file)
+    if has_key(ret, 'include')
+      let dir = fnamemodify(a:toml_file, ':p:h')
+      for file in ret['include']
+        call extend(ret, ctrlme#load_toml(s:FP.join(dir, file)))
+      endfor
+      call remove(ret, 'include')
+    endif
+    return ret
+  catch /No such file/
+    echomsg 'no such file:' . a:toml_file
+    return {}
+  endtry
 endfunction
 
 function! ctrlme#get_candidates(toml, keyword) abort
